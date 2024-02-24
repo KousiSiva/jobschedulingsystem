@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Scheduler</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #89f8e9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #home, #app, #scheduledJobs {
+            max-width: 800px;
+            margin: 30px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #app {
+            width: 100%;
+            display: none;
+        }
+
+        h1, h2 {
+            color: #00796b;
+            text-align: center;
+        }
+
+        p {
+            color: #004d40;
+            text-align: center;
+        }
+
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #004d40;
+        }
+    </style>
+</head>
+<body>
+    <div id="home">
+        <h1>Welcome to Job Scheduler</h1>
+        <p>This is a job scheduling application. Click the button below to start scheduling tasks👇.</p>
+        <button onclick="showScheduler()">Go to Scheduler</button>
+    </div>
+
+    <div id="app">
+        <h2>Job Scheduler</h2>
+        <div>
+            <label for="taskInput">Task:</label>
+            <input type="text" id="taskInput" placeholder="Enter task">
+        </div>
+        <div>
+            <label for="dateInput">Date:</label>
+            <input type="date" id="dateInput">
+        </div>
+        <div>
+            <label for="timeInput">Time:</label>
+            <input type="time" id="timeInput">
+        </div>
+        <div>
+            <label for="durationInput">Duration (in minutes):</label>
+            <input type="number" id="durationInput" min="1" placeholder="Enter duration">
+        </div>
+        <div>
+            <label for="priorityInput">Priority:</label>
+            <input type="number" id="priorityInput" min="1" placeholder="Enter priority">
+        </div>
+        <div>
+            <label for="algorithmSelect">Scheduling Algorithm:</label>
+            <select id="algorithmSelect">
+                <option value="roundRobin">Round Robin</option>
+                <option value="sjf">Shortest Job First (SJF)</option>
+                <option value="priority">Priority</option>
+            </select>
+        </div>
+        <button onclick="scheduleTask()">Schedule Task</button>
+        <ul id="scheduleList"></ul>
+        <button onclick="viewScheduledJobs()">View Scheduled Jobs</button>
+    </div>
+
+    <div id="scheduledJobs" style="display:none;">
+        <h2>Scheduled Jobs</h2>
+        <ul></ul>
+    </div>
+
+    <script>
+        function showScheduler() {
+            document.getElementById("home").style.display = "none";
+            document.getElementById("app").style.display = "block";
+        }
+
+        function scheduleTask() {
+            const taskInput = document.getElementById('taskInput');
+            const dateInput = document.getElementById('dateInput');
+            const timeInput = document.getElementById('timeInput');
+            const durationInput = document.getElementById('durationInput');
+            const priorityInput = document.getElementById('priorityInput');
+            const algorithmSelect = document.getElementById('algorithmSelect');
+
+            const task = taskInput.value;
+            const date = dateInput.value;
+            const time = timeInput.value;
+            const duration = parseInt(durationInput.value);
+            const priority = parseInt(priorityInput.value);
+            const algorithm = algorithmSelect.value;
+
+            if (task && date && time && ((algorithm === 'sjf' && !isNaN(duration) && duration > 0) || (algorithm === 'priority' && !isNaN(priority) && priority > 0))) {
+                const scheduleList = document.getElementById('scheduleList');
+
+                const taskItem = document.createElement('li');
+                taskItem.className = 'taskItem';
+                taskItem.innerHTML = `
+                    <span>${task} - ${date} ${time} ${algorithm === 'sjf' ? `(Duration: ${duration} min)` : `(Priority: ${priority})`}</span>
+                    <span class="deleteBox">
+                        <span class="deleteBtn" onclick="deleteTask(this)">Delete</span>
+                    </span>
+                `;
+
+                // Call the appropriate scheduling algorithm function
+                switch (algorithm) {
+                    case 'roundRobin':
+                        scheduleRoundRobin(taskItem);
+                        break;
+                    case 'sjf':
+                        scheduleSJF(taskItem, duration);
+                        break;
+                    case 'priority':
+                        schedulePriority(taskItem, priority);
+                        break;
+                    default:
+                        alert('Invalid algorithm');
+                        return;
+                }
+
+                // Clear input fields
+                taskInput.value = '';
+                dateInput.value = '';
+                timeInput.value = '';
+                durationInput.value = '';
+                priorityInput.value = '';
+            } else {
+                alert('Please fill in all fields and provide valid duration or priority.');
+            }
+        }
+
+        function scheduleRoundRobin(taskItem) {
+            const scheduleList = document.getElementById('scheduleList');
+            scheduleList.appendChild(taskItem);
+        }
+
+        function scheduleSJF(taskItem, duration) {
+            const scheduleList = document.getElementById('scheduleList');
+            const existingTasks = scheduleList.getElementsByClassName('taskItem');
+
+            const sortedTasks = Array.from(existingTasks).sort((a, b) => {
+                const durationA = parseInt(a.getElementsByTagName('span')[0].textContent.match(/\(Duration: (\d+) min\)/)[1]);
+                const durationB = parseInt(b.getElementsByTagName('span')[0].textContent.match(/\(Duration: (\d+) min\)/)[1]);
+                return durationA - durationB;
+            });
+
+            const indexToInsert = sortedTasks.findIndex(task => {
+                const durationItem = parseInt(taskItem.getElementsByTagName('span')[0].textContent.match(/\(Duration: (\d+) min\)/)[1]);
+                const durationExisting = parseInt(task.getElementsByTagName('span')[0].textContent.match(/\(Duration: (\d+) min\)/)[1]);
+                return durationItem < durationExisting;
+            });
+
+            if (indexToInsert === -1) {
+                scheduleList.appendChild(taskItem);
+            } else {
+                scheduleList.insertBefore(taskItem, sortedTasks[indexToInsert]);
+            }
+        }
+
+        function schedulePriority(taskItem, priority) {
+            const scheduleList = document.getElementById('scheduleList');
+            const existingTasks = scheduleList.getElementsByClassName('taskItem');
+
+            const sortedTasks = Array.from(existingTasks).sort((a, b) => {
+                const priorityA = parseInt(a.getElementsByTagName('span')[0].textContent.match(/\(Priority: (\d+)\)/)[1]);
+                const priorityB = parseInt(b.getElementsByTagName('span')[0].textContent.match(/\(Priority: (\d+)\)/)[1]);
+                return priorityA - priorityB;
+            });
+
+            const indexToInsert = sortedTasks.findIndex(task => {
+                const priorityItem = parseInt(taskItem.getElementsByTagName('span')[0].textContent.match(/\(Priority: (\d+)\)/)[1]);
+                const priorityExisting = parseInt(task.getElementsByTagName('span')[0].textContent.match(/\(Priority: (\d+)\)/)[1]);
+                return priority <= priorityExisting;
+            });
+
+            if (indexToInsert === -1) {
+                scheduleList.appendChild(taskItem);
+            } else {
+                scheduleList.insertBefore(taskItem, sortedTasks[indexToInsert]);
+            }
+        }
+
+        function viewScheduledJobs() {
+            const scheduledJobs = document.getElementById('scheduledJobs');
+            const scheduleList = document.getElementById('scheduleList').cloneNode(true);
+
+            scheduledJobs.innerHTML = '';
+            scheduledJobs.appendChild(scheduleList);
+
+            document.getElementById("home").style.display = "none";
+            document.getElementById("app").style.display = "none";
+            scheduledJobs.style.display = "block";
+        }
+
+        function deleteTask(element) {
+            element.closest('.taskItem').remove();
+        }
+    </script>
+</body>
+</html>
